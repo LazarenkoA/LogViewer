@@ -182,7 +182,7 @@ func (this *tableView) start() {
 		return action, event
 	})
 	this.app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		if event.Key() == tcell.KeyF2  && !viewerMode {
+		if event.Key() == tcell.KeyTAB  && !viewerMode { // почему-то tcell.KeyF2 не работает в linux
 			row, _ := this.table.GetSelection()
 			if !selectMode { // значит не вошли в режим выделения
 				return event
@@ -202,7 +202,7 @@ func (this *tableView) start() {
 				this.pages.AddPage("viewer", textView, true, true)
 				this.app.Draw()
 			}()
-			
+
 		} else if event.Key() == tcell.KeyEscape {
 			viewerMode = false
 			this.pages.RemovePage("viewer")
@@ -223,21 +223,23 @@ func (this *tableView) start() {
 			this.table.ScrollToEnd()
 			return nil
 		}
-
 		return event
 	})
+
 
 	// события TextView
 	selectMode = false
 	textView.SetDoneFunc(func(key tcell.Key) {
-		go func() {
-			textView.Highlight("all").ScrollToHighlight()
-			this.app.Draw()
-			clipboard.WriteAll(textView.GetText(true))
-			time.Sleep(time.Millisecond*100)
-			textView.Highlight()
-			this.app.Draw()
-		}()
+		if key == tcell.KeyEnter {
+			go func() {
+				textView.Highlight("all").ScrollToHighlight()
+				this.app.Draw()
+				clipboard.WriteAll(textView.GetText(true))
+				time.Sleep(time.Millisecond * 100)
+				textView.Highlight()
+				this.app.Draw()
+			}()
+		}
 	})
 
 	this.app.SetFocus(this.table)
