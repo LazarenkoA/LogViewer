@@ -12,12 +12,14 @@ import (
 	"math"
 	"math/rand"
 	"os"
-	"regexp"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	_ "net/http/pprof"
 )
 
 type tline struct {
@@ -70,12 +72,20 @@ func init() {
 	//flag.IntVar(&max, "max", -1, "Порядковый номер числового поля для получения максимума")
 	//flag.IntVar(&avg, "avg", -1, "Порядковый номер числового поля для получения среднего значения")
 	flag.BoolVar(&showHelp, "help", false, "Помощь")
+
+	runtime.SetMutexProfileFraction(5)
 }
 
 func main() {
 	flag.Parse()
 	if showHelp {
 		flag.Usage()
+		return
+	}
+
+	stat, _ := os.Stdin.Stat()
+	if (stat.Mode() & os.ModeNamedPipe) == 0 {
+		fmt.Println("Приложение работает только с pipe")
 		return
 	}
 
@@ -119,6 +129,11 @@ func main() {
 	//}()
 
 	// cat D:/log/T3/For1C/rphost*/* | grep CALL -w | grep context -iw | main -a=Memory -g=event,Context
+	// cat D:/GoMy/src/LogViewer/20071718.log | tview -g=Context
+
+	//go http.ListenAndServe(":8888", nil)
+	//go tool pprof  http://localhost:8888/debug/pprof/profile?seconds=10
+
 	newView.start()
 }
 
@@ -138,7 +153,13 @@ func (this *tableView) start() {
 	this.tableHeader()
 	go this.tableFill()
 
-	textView := tview.NewTextView().SetDynamicColors(true).SetScrollable(true).SetWordWrap(true).SetRegions(true)
+	textView := tview.NewTextView().//.SetDynamicColors(true).
+		SetScrollable(true).
+		SetWordWrap(true).
+		SetRegions(true).
+		SetChangedFunc(func() {
+			this.app.Draw()
+		})
 	textView.SetBorder(true)
 
 	selectMode, viewerMode := false, false
@@ -190,17 +211,25 @@ func (this *tableView) start() {
 			column := this.table.GetColumnCount()-1
 			id := this.table.GetCell(row, column).Text
 
-			if v, ok := this.line[id]; ok {
-				txt := fmt.Sprintf(`["all"]%v[""]`, strings.Join(v.sourceLines, "\n"))
-				//fmt.Fprintf(textView, "%s ", txt) // append
-				textView.SetText(txt)
-				textView.ScrollToBeginning()
-			}
-
 			viewerMode = true
 			go func() {
 				this.pages.AddPage("viewer", textView, true, true)
-				this.app.Draw()
+				//this.app.Draw()
+			}()
+
+			textView.Clear()
+			go func() {textView.ScrollToBeginning()
+				if v, ok := this.line[id]; ok {
+					txt := fmt.Sprintf(`["all"]%v[""]`, strings.Join(v.sourceLines, "\n")) //долго грузится при больших объемах
+					textView.SetText(txt)
+
+					//txt := append([]string{ `["all"]` }, append(v.sourceLines,  `[""]` )... )
+					//for _, line := range txt {
+					//	fmt.Fprintln(textView, line)  // append
+					//	time.Sleep(time.Millisecond*10)
+					//	textView.ScrollToBeginning()
+					//}
+				}
 			}()
 
 		} else if event.Key() == tcell.KeyEscape {
@@ -232,6 +261,7 @@ func (this *tableView) start() {
 	textView.SetDoneFunc(func(key tcell.Key) {
 		if key == tcell.KeyEnter {
 			go func() {
+				textView.Highlight()
 				textView.Highlight("all").ScrollToHighlight()
 				this.app.Draw()
 				clipboard.WriteAll(textView.GetText(true))
@@ -477,31 +507,39 @@ func (f *formatter1C) Format(str string) map[string]string {
 	result := make(map[string]string, 0)
 
 	// проверяем на соответствие шаблону, важно при обработке многострочных логов
-	re := regexp.MustCompile(`(?mi)\d\d:\d\d\.\d+[-]\d+`)
-	if ok := re.MatchString(str); !ok {
+	// слишком дорагая операция, съедает 50% времени
+	//re := regexp.MustCompile(`(?mi)\d\d:\d\d\.\d+[-]\d+`)
+	//if ok := re.MatchString(str); !ok {
+	//	return result
+	//}
+
+	parts := strings.Split(str, ",")
+	if len(parts) < 2 {
 		return result
 	}
 
-	parts := strings.Split(str, ",")
-	if len(parts) == 0 {
+	// системные свойства, время, событие, длительность (06:11.062003-0,CLSTR,0,pro....)
+
+	timeDuration := strings.Index(parts[0], "-")
+	if timeDuration < 0 {
 		return result
 	}
+
+	// время
+	result["time"] = parts[0][:timeDuration]
+
+	// длительность
+	result["duration"] = parts[0][timeDuration+1:]
+
+	// событие
+	result["event"] = parts[1]
+
 	for _, v := range parts {
 		keyValue := strings.Split(strings.Trim(v, " "), "=")
 		if len(keyValue) == 2 {
 			result[keyValue[0]] = keyValue[1]
 		}
 	}
-
-	// теперь системные свойства, время, событие, длительность (06:11.062003-0,CLSTR,0,pro....)
-	// время
-	result["time"] = parts[0][:strings.Index(parts[0], "-")]
-
-	// длительность
-	result["duration"] = parts[0][strings.Index(parts[0], "-")+1:]
-
-	// событие
-	result["event"] = parts[1]
 
 	return result
 }
