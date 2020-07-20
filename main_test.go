@@ -42,3 +42,5 @@ func getHashWitRace(inStr string) string {
 
 	return <-out
 }
+
+// go test . -test.bench .*

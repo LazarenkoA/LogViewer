@@ -2,6 +2,8 @@ package main
 
 import (
 	"bufio"
+	"os"
+
 	"context"
 	"crypto/md5"
 	"flag"
@@ -11,7 +13,6 @@ import (
 	"github.com/rivo/tview"
 	"math"
 	"math/rand"
-	"os"
 	"runtime"
 	"sort"
 	"strconv"
@@ -19,7 +20,7 @@ import (
 	"sync"
 	"time"
 
-	_ "net/http/pprof"
+	// _ "net/http/pprof"
 )
 
 type tline struct {
@@ -33,12 +34,6 @@ type tline struct {
 	sourceLines []string
 	id          string
 }
-
-type Iformatter interface {
-	Format(string) map[string]string
-}
-
-type formatter1C struct{}
 
 type tableView struct {
 	sync.RWMutex
@@ -102,34 +97,6 @@ func main() {
 			}
 		}
 	}()
-
-	//source := []string{
-	//	`00:00.953001-0,CLSTR,0,process=ragent,OSThread=12746,host:pid=ca-sys-3:5822,current_rt=46,average_rt=51`,
-	//	`00:00.976002-0,CLSTR,0,process=ragent,OSThread=13138,host:pid=ca-sys-3:5824,current_rt=48,average_rt=51`,
-	//	`00:00.982005-0,CLSTR,0,process=ragent,OSThread=12747,host:pid=CA-T3-APP-1:12754,current_rt=54,average_rt=43`,
-	//	`00:01.149000-0,CONN,0,process=ragent,OSThread=12749,Txt='Ping direction statistics: address=127.0.1.1:1560,pingTimeout=15000,pingPeriod=3000,period=10065,packetsSent=3,avgResponseTime=0,maxResponseTime=0,packetsTimedOut=0,packetsLost=0,packetsLostAndFound=0'`,
-	//	`00:01.150000-0,CONN,0,process=ragent,OSThread=12749,Txt='Ping direction statistics: address=172.18.1.27:31562,pingTimeout=15000,pingPeriod=3000,period=10065,packetsSent=3,avgResponseTime=0,maxResponseTime=0,packetsTimedOut=0,packetsLost=0,packetsLostAndFound=0'`,
-	//	`00:01.150001-0,CONN,0,process=ragent,OSThread=12749,Txt='Ping direction statistics: address=172.18.1.27:31563,pingTimeout=15000,pingPeriod=3000,period=10065,packetsSent=3,avgResponseTime=0,maxResponseTime=0,packetsTimedOut=0,packetsLost=0,packetsLostAndFound=0'`,
-	//	`00:02.220000-0,CONN,0,process=ragent,OSThread=12855,ClientID=11211,Protected=0,Txt='Accepted, client=(2)127.0.0.1:48946, server=(2)127.0.0.1:1540'`,
-	//	`00:02.221000-0,CONN,0,process=ragent,OSThread=12857,ClientID=11212,Protected=0,Txt='Accepted, client=(2)127.0.0.1:48948, server=(2)127.0.0.1:1540'`,
-	//	`00:02.221009-0,CONN,0,process=ragent,OSThread=12859,ClientID=11213,Protected=0,Txt='Accepted, client=(2)127.0.0.1:48950, server=(2)127.0.0.1:1540'`,
-	//}
-	//
-	//
-	//go func() {
-	//	t := time.NewTicker(time.Millisecond)
-	//	defer close(newView.in)
-	//	defer t.Stop()
-	//
-	//	for {
-	//		newView.in <- source[rand.Intn(len(source))]
-	//
-	//		<- t.C
-	//	}
-	//}()
-
-	// cat D:/log/T3/For1C/rphost*/* | grep CALL -w | grep context -iw | main -a=Memory -g=event,Context
-	// cat D:/GoMy/src/LogViewer/20071718.log | tview -g=Context
 
 	//go http.ListenAndServe(":8888", nil)
 	//go tool pprof  http://localhost:8888/debug/pprof/profile?seconds=10
@@ -278,14 +245,12 @@ func (this *tableView) start() {
 	//		AddItem(this.table, 0, 1, false).
 	//		AddItem(tview.NewBox().SetBorder(true).SetTitle("Bottom (5 rows)"). , 5, 1, false), 0, 2, false)
 
-	frame := tview.NewFrame(this.table).SetBorders(0, 2, 0, 2, 1, 2)
-
 	// Проверяем работу буфера, в линуксе его работа зависит от установленых приложений
 	//if _, err := clipboard.ReadAll(); err != nil {
 	//	frame.AddText(fmt.Sprintf("Произошла ошибка при работе с буфером обмена: %v", err), false, tview.AlignLeft, tcell.ColorRed)
 	//}
 
-	this.pages.AddPage("frame", frame, true, true)
+	this.pages.AddPage("frame", this.tableFooter(), true, true)
 	if err := this.app.SetRoot(this.pages, true).EnableMouse(true).Run(); err != nil {
 		panic(err)
 	}
@@ -377,6 +342,21 @@ func (this *tableView) tableHeader() {
 			SetAlign(tview.AlignLeft).
 			SetSelectable(false))
 	}
+}
+
+func (this *tableView) tableFooter() *tview.Frame {
+	frame := tview.NewFrame(this.table).SetBorders(0, 2, 0, 2, 0, 0)
+
+
+	// fmt.Printf("%-50v", "текст") - не работает с frame
+
+	frame.AddText(appendletter("Включить режим выделения строк", ".", 60) + "Enter", false, tview.AlignLeft, tcell.ColorBlue).
+		AddText(appendletter("Скопировать значение ячейки в буфер (в режиме выделения)", ".", 60) + "Enter", false, tview.AlignLeft, tcell.ColorBlue).
+		AddText(appendletter("Посмотреть исходные строки (в режиме выделения)", ".", 60) + "Tab", false, tview.AlignLeft, tcell.ColorBlue).
+		AddText(appendletter("Выйти из режима выделения и из программы ", ".", 60) + "Esc", false, tview.AlignLeft, tcell.ColorBlue).
+		SetBackgroundColor(tcell.ColorGray)
+
+	return frame
 }
 
 func (this *tableView) Addline(key string, value *tline) {
@@ -503,43 +483,11 @@ func getHash(inStr string) string {
 	return fmt.Sprintf("%x", Sum)
 }
 
-func (f *formatter1C) Format(str string) map[string]string {
-	result := make(map[string]string, 0)
-
-	// проверяем на соответствие шаблону, важно при обработке многострочных логов
-	// слишком дорагая операция, съедает 50% времени
-	//re := regexp.MustCompile(`(?mi)\d\d:\d\d\.\d+[-]\d+`)
-	//if ok := re.MatchString(str); !ok {
-	//	return result
-	//}
-
-	parts := strings.Split(str, ",")
-	if len(parts) < 2 {
-		return result
+func appendletter(str, letter string, count int) string  {
+	if len([]rune(str)) >= count {
+		return str
 	}
 
-	// системные свойства, время, событие, длительность (06:11.062003-0,CLSTR,0,pro....)
-
-	timeDuration := strings.Index(parts[0], "-")
-	if timeDuration < 0 {
-		return result
-	}
-
-	// время
-	result["time"] = parts[0][:timeDuration]
-
-	// длительность
-	result["duration"] = parts[0][timeDuration+1:]
-
-	// событие
-	result["event"] = parts[1]
-
-	for _, v := range parts {
-		keyValue := strings.Split(strings.Trim(v, " "), "=")
-		if len(keyValue) == 2 {
-			result[keyValue[0]] = keyValue[1]
-		}
-	}
-
-	return result
+	delta := count - len([]rune(str))
+	return str + strings.Repeat(letter, delta)
 }

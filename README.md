@@ -1,4 +1,8 @@
 # LogViewer
+<img src="doc/img/jhjf676u.gif" width="800" height="800">
 
-<h3 align="center">A passionate frontend developer from India</h3>
-<p align="left"><img src="https://konpa.github.io/devicon/devicon.git/icons/go/go-original.svg" alt="go" width="20" height="20"/></p>
+<img src="doc/img/ghmj7u6yh4.gif" width="800" height="800">
+
+<img src="doc/img/MHfBmgGGQt.gif" width="800" height="800">
+
+<img src="doc/img/e9u79vSNuZ.gif" width="800" height="800">
