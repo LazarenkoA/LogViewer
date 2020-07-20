@@ -4,6 +4,9 @@
 <img src="img/jhjf676u.gif" width="800">
 
 <img src="img/ghmj7u6yh4.gif" width="800">
+тут было добавлено 
+`perl -pe '$_ =~ s/\r\n/\n/g; $_ =~ s/[ \t]+/ /g; ' | awk -vORS= '{if(match($0, "^[0-9][0-9]:[0-9][0-9].[0-9]+-")) print "\n"$0; else print $0;}' `
+что бы избавиться от артифактов многострочных логов
 
 <img src="img/MHfBmgGGQt.gif" width="800">
 
