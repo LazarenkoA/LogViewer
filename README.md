@@ -12,8 +12,13 @@ perl -pe '$_ =~ s/\r\n/\n/g; $_ =~ s/[ \t]+/ /g; ' | awk -vORS= '{if(match($0, "
 ```` 
 что бы избавиться от артефактов многострочных логов
 
-
+---
 <img src="img/MHfBmgGGQt.gif" width="800"> 
+
+Вызовы с группировкой по контексту и агрегация по Memory
+<img src="img/e9u79vSNuZ.gif" width="800"> 
+
+Вызовы с группировкой по контексту и агрегация по duration
 <img src="img/e9u79vSNuZ.gif" width="800"> 
 
 
