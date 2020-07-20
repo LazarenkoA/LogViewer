@@ -60,12 +60,8 @@ const (
 
 func init() {
 	rand.Seed(time.Now().UTC().UnixNano())
-	//flag.StringVar(&splitter, "s", defaultsplitter, "(splitter) Разделитель")
 	flag.StringVar(&group, "g", "", "(group) Имена свойств для по которым нужно группировать")
 	flag.StringVar(&aggr, "a", "", "(aggregate) Имя свойства для агрегации (сумма, макс, ср)")
-	//flag.IntVar(&summ, "min", -1, "Порядковый номер числового поля для суммирования значения")
-	//flag.IntVar(&max, "max", -1, "Порядковый номер числового поля для получения максимума")
-	//flag.IntVar(&avg, "avg", -1, "Порядковый номер числового поля для получения среднего значения")
 	flag.BoolVar(&showHelp, "help", false, "Помощь")
 
 	runtime.SetMutexProfileFraction(5)
