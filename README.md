@@ -23,7 +23,7 @@ perl -pe '$_ =~ s/\r\n/\n/g; $_ =~ s/[ \t]+/ /g; ' | awk -vORS= '{if(match($0, "
 
 
 ### Начать использовать
-Качаем актуальный [релиз](https://github.com/LazarenkoA/LogViewer/releases ) помещаем биналник в PATH, все
+Качаем актуальный [релиз](https://github.com/LazarenkoA/LogViewer/releases ) помещаем бинарник в PATH, все
 
 
 ### Key bindings
