@@ -11,10 +11,9 @@ perl -pe '$_ =~ s/\r\n/\n/g; $_ =~ s/[ \t]+/ /g; ' | awk -vORS= '{if(match($0, "
 ```` 
 что бы избавиться от артифактов многострочных логов
 
-<img src="img/MHfBmgGGQt.gif" width="800">
 
-<img src="img/e9u79vSNuZ.gif" width="800"> 
-
+<img src="img/MHfBmgGGQt.gif" width="800"> | <img src="img/e9u79vSNuZ.gif" width="800"> 
+----------------------------------------|---------------------------------------
 
 ### Key bindings
 Клавиша                                     | Описание
