@@ -6,10 +6,10 @@ env:
 install:
   - go get -v golang.org/x/lint/golint
 script:
-  - golint -set_exit_status .
+  #- golint -set_exit_status .
   - go test -v -race .
 matrix:
-  allow_failures:
-    - go: tip
+  #allow_failures:
+  #  - go: tip
 notifications:
     email: true
