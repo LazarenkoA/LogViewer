@@ -47,7 +47,7 @@ func Test_format1С(t *testing.T) {
 					t.Error("Некорректно распарсилось свойство \"Sql\"")
 				}
 			}
-			if i == 1 && len(data) != 18 {
+			if i == 1 && len(data) != 16 {
 				t.Errorf("Некорретное разбиение, должно быть 18 частей, имеем %v", len(data))
 			}
 			if (i == 2 || i == 3) && len(data) > 0 {
