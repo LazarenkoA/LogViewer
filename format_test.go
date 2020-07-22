@@ -32,7 +32,7 @@ func Test_format1С(t *testing.T) {
 				if _, ok := data["event"]; !ok {
 					t.Error("Отсутствует свойство event")
 				}
-				if v, ok := data["duration"]; !ok {
+				if v, ok := data["duration"]; ok {
 					t.Error("Отсутствует свойство duration")
 				} else if v != "1003" {
 					t.Errorf("Некорректное свойство duration, ожидалось 1003, имеем %v", v)
