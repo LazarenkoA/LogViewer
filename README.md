@@ -26,6 +26,11 @@ perl -pe '$_ =~ s/\r\n/\n/g; $_ =~ s/[ \t]+/ /g; ' | awk -vORS= '{if(match($0, "
 <img src="img/sacsdfa3.gif" width="800"> 
 
 
+Анализ сколько провисели на управляемых блокировках и на каких ресурсах
+<img src="img/HJchg7hFFGj8.gif" width="800"> 
+
+
+
 ### Начать использовать
 Качаем актуальный [релиз](https://github.com/LazarenkoA/LogViewer/releases ) помещаем бинарник в PATH, все
 
