@@ -35,20 +35,20 @@ func Test_format1С(t *testing.T) {
 				if v, ok := data["duration"]; !ok {
 					t.Error("Отсутствует свойство duration")
 				} else if v != "1003" {
-					t.Errorf("Не корректное свойство duration, ожидалось 1003, имеем %v", v)
+					t.Errorf("Некорректное свойство duration, ожидалось 1003, имеем %v", v)
 				}
 			}
 
 			if i == 0 {
 				if len(data) != 20 {
-					t.Errorf("Не корретное разбиение, должно быть 20 частей, имеем %v", len(data))
+					t.Errorf("Некорретное разбиение, должно быть 20 частей, имеем %v", len(data))
 				}
 				if data["Sql"] != "'SELECT Creation,Modified,Attributes,DataSize,BinaryData FROM Config WHERE FileName = $1 ORDER BY PartNo'" {
-					t.Error("Не корректно распарсилось свойство \"Sql\"")
+					t.Error("Некорректно распарсилось свойство \"Sql\"")
 				}
 			}
 			if i == 1 && len(data) != 18 {
-				t.Errorf("Не корретное разбиение, должно быть 18 частей, имеем %v", len(data))
+				t.Errorf("Некорретное разбиение, должно быть 18 частей, имеем %v", len(data))
 			}
 			if (i == 2 || i == 3) && len(data) > 0 {
 				t.Error("Строка не должна была распарситься")
