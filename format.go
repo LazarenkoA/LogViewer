@@ -1,6 +1,9 @@
 package main
 
-import "strings"
+import (
+	uuid "github.com/nu7hatch/gouuid"
+	"strings"
+)
 
 type Iformatter interface {
 	Format(string) map[string]string
@@ -8,10 +11,32 @@ type Iformatter interface {
 
 type formatter1C struct{}
 
-
-
 func (f *formatter1C) Format(str string) map[string]string {
 	result := make(map[string]string, 0)
+	tmp := make(map[string]string)
+
+	// "," может встречаться в значение, в таких случаях значение будет строкой т.е. в "" или в ''
+	for {
+		if quoteStart := strings.Index(str, "'")+1; quoteStart > 0 {
+			right := str[quoteStart:]
+			if quoteEnd := strings.Index(right, "'"); quoteEnd >= 0 {
+				if ID, err := uuid.NewV4(); err == nil {
+					strID := ID.String()
+
+					tmp[strID] = "'"+ str[quoteStart : quoteStart+quoteEnd] + "'"
+					str = strings.Replace(str, tmp[strID], strID, -1)
+				}
+			} else {
+				break
+			}
+		} else {
+			break
+		}
+	}
+
+	//r := csv.NewReader(strings.NewReader(str))
+	//r.LazyQuotes = true
+	//record, _ := r.Read()
 
 	// проверяем на соответствие шаблону, важно при обработке многострочных логов
 	// слишком дорагая операция, съедает 50% времени
@@ -26,7 +51,6 @@ func (f *formatter1C) Format(str string) map[string]string {
 	}
 
 	// системные свойства, время, событие, длительность (06:11.062003-0,CLSTR,0,pro....)
-
 	timeDuration := strings.Index(parts[0], "-")
 	if timeDuration < 0 {
 		return result
@@ -48,6 +72,10 @@ func (f *formatter1C) Format(str string) map[string]string {
 		// Descr='./src/ClusterDistribImpl.cpp(1640):60c686dc-798f-4d17-aadb-a90156a16eb8: Сеанс отсутствует или удаленID=30ecb789-2b56-46af-971d-c0a9579b9181
 		if len(keyValue) >= 2 {
 			result[keyValue[0]] = strings.Join(keyValue[1:], "=")
+			for k, v := range tmp {
+				result[keyValue[0]] = strings.Replace(result[keyValue[0]], k, v, -1)
+			}
+
 		}
 	}
 
