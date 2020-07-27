@@ -56,6 +56,9 @@ var (
 
 const (
 	maxtableRow = 500 // Нет смысла выводить все строки, поставил 500. Если без оганичения тормаза начинаются
+	modeDefault = 1 << iota
+	modeSelect
+	modeView
 )
 
 func init() {
@@ -116,6 +119,10 @@ func (this *tableView) start() {
 	this.tableHeader()
 	go this.tableFill()
 
+	this.pages.AddPage("table", this.table, true, true)
+	frame := tview.NewFrame(this.pages).SetBorders(0, 0, 0, 1, 0, 0)
+ 	this.renderTableFooter(frame, modeDefault)
+
 	textView := tview.NewTextView().//.SetDynamicColors(true).
 		SetScrollable(true).
 		SetWordWrap(true).
@@ -134,16 +141,19 @@ func (this *tableView) start() {
 			} else {
 				selectMode = false
 				this.table.SetSelectable(selectMode, selectMode)
+				this.renderTableFooter(frame, modeDefault)
 			}
 		}
 		if key == tcell.KeyEnter {
 			selectMode = true
 			this.table.SetSelectable(selectMode, selectMode)
+			this.renderTableFooter(frame, modeSelect)
 		}
 	}).SetSelectedFunc(func(row int, column int) {
 		selectMode = false
 		this.table.SetSelectable(selectMode, selectMode)
 		clipboard.WriteAll(tview.TranslateANSI(this.table.GetCell(row, column).Text))
+		this.renderTableFooter(frame, modeDefault)
 	})
 	this.table.SetMouseCapture(func(action tview.MouseAction, event *tcell.EventMouse) (action2 tview.MouseAction, mouse *tcell.EventMouse) {
 		// пока не нашел другого способа понять по какой ячейке кликнули
@@ -163,6 +173,7 @@ func (this *tableView) start() {
 			}
 		}
 
+
 		return action, event
 	})
 	this.app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
@@ -175,11 +186,7 @@ func (this *tableView) start() {
 			id := this.table.GetCell(row, column).Text
 
 			viewerMode = true
-			go func() {
-				this.pages.AddPage("viewer", textView, true, true)
-				//this.app.Draw()
-			}()
-
+			this.pages.AddPage("viewer", textView, true, true)
 			textView.Clear()
 			go func() {textView.ScrollToBeginning()
 				if v, ok := this.line[id]; ok {
@@ -195,9 +202,11 @@ func (this *tableView) start() {
 				}
 			}()
 
+			this.renderTableFooter(frame, modeView)
 		} else if event.Key() == tcell.KeyEscape {
 			viewerMode = false
 			this.pages.RemovePage("viewer")
+			this.renderTableFooter(frame, modeSelect)
 		}
 		if event.Key() == tcell.KeyUp {
 			row, _ := this.table.GetSelection()
@@ -246,8 +255,8 @@ func (this *tableView) start() {
 	//	frame.AddText(fmt.Sprintf("Произошла ошибка при работе с буфером обмена: %v", err), false, tview.AlignLeft, tcell.ColorRed)
 	//}
 
-	this.pages.AddPage("frame", this.tableFooter(), true, true)
-	if err := this.app.SetRoot(this.pages, true).EnableMouse(true).Run(); err != nil {
+	//this.pages.AddPage("footer", footer, true, true)
+	if err := this.app.SetRoot(frame, true).EnableMouse(true).Run(); err != nil {
 		panic(err)
 	}
 }
@@ -340,19 +349,32 @@ func (this *tableView) tableHeader() {
 	}
 }
 
-func (this *tableView) tableFooter() *tview.Frame {
-	frame := tview.NewFrame(this.table).SetBorders(0, 2, 0, 2, 0, 0)
+func (this *tableView) renderTableFooter(footer  *tview.Frame, mode int)  {
+	footer.Clear()
+	if mode&modeDefault == modeDefault {
+		footer.AddText( "Exit - Esc", false, tview.AlignLeft, tcell.ColorGreen).
+			AddText( "Select mode - Enter", false, tview.AlignCenter, tcell.ColorGreen)
 
-
+	}
+	if mode&modeSelect == modeSelect {
+		footer.AddText( "Exit mode - Esc", false, tview.AlignLeft, tcell.ColorGreen).
+			AddText( "Copy in clipboard - Enter", false, tview.AlignCenter, tcell.ColorGreen).
+			AddText( "View lines - Tab", false, tview.AlignRight, tcell.ColorGreen)
+	}
+	if mode&modeView == modeView {
+		footer.AddText( "Exit view - Esc", false, tview.AlignLeft, tcell.ColorGreen).
+			AddText( "Copy in clipboard - Enter", false, tview.AlignCenter, tcell.ColorGreen)
+	}
 	// fmt.Printf("%-50v", "текст") - не работает с frame
 
-	frame.AddText(appendletter("Включить режим выделения строк", ".", 60) + "Enter", false, tview.AlignLeft, tcell.ColorBlue).
-		AddText(appendletter("Скопировать значение ячейки в буфер (в режиме выделения)", ".", 60) + "Enter", false, tview.AlignLeft, tcell.ColorBlue).
-		AddText(appendletter("Посмотреть исходные строки (в режиме выделения)", ".", 60) + "Tab", false, tview.AlignLeft, tcell.ColorBlue).
-		AddText(appendletter("Выйти из режима выделения и из программы ", ".", 60) + "Esc", false, tview.AlignLeft, tcell.ColorBlue).
-		SetBackgroundColor(tcell.ColorGray)
 
-	return frame
+
+	//frame.AddText(appendletter("Включить режим выделения строк", ".", 60) + "Enter", false, tview.AlignLeft, tcell.ColorBlue).
+	//	AddText(appendletter("Скопировать значение ячейки в буфер (в режиме выделения)", ".", 60) + "Enter", false, tview.AlignLeft, tcell.ColorBlue).
+	//	AddText(appendletter("Посмотреть исходные строки (в режиме выделения)", ".", 60) + "Tab", false, tview.AlignLeft, tcell.ColorBlue).
+	//	AddText(appendletter("Выйти из режима выделения и из программы ", ".", 60) + "Esc", false, tview.AlignLeft, tcell.ColorBlue).
+	//	SetBackgroundColor(tcell.ColorGreen)
+
 }
 
 func (this *tableView) Addline(key string, value *tline) {
