@@ -58,6 +58,11 @@ func (f *formatter1C) Format(str string) map[string]string {
 
 	// время
 	result["time"] = parts[0][:timeDuration]
+	if timebreak := strings.Split(result["time"], "."); len(timebreak) > 0 {
+		minsec := strings.Split(timebreak[0], ":")
+		result["min"], result["sec"] = minsec[0], minsec[1]
+	}
+
 
 	// длительность
 	result["duration"] = parts[0][timeDuration+1:]
