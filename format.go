@@ -52,15 +52,20 @@ func (f *formatter1C) Format(str string) map[string]string {
 
 	// системные свойства, время, событие, длительность (06:11.062003-0,CLSTR,0,pro....)
 	timeDuration := strings.Index(parts[0], "-")
-	if timeDuration < 0 {
+	if timeDuration < 0 || len([]rune(parts[0][:timeDuration])) != 12 {
 		return result
 	}
 
 	// время
 	result["time"] = parts[0][:timeDuration]
 	if timebreak := strings.Split(result["time"], "."); len(timebreak) > 0 {
-		minsec := strings.Split(timebreak[0], ":")
-		result["minutes"], result["seconds"] = minsec[0], minsec[1]
+		if minsec := strings.Split(timebreak[0], ":"); len(minsec) >= 2 {
+			result["minutes"], result["seconds"] = minsec[0], minsec[1]
+		} else {
+			return result
+		}
+	} else {
+		return result
 	}
 
 
