@@ -60,7 +60,7 @@ func (f *formatter1C) Format(str string) map[string]string {
 	result["time"] = parts[0][:timeDuration]
 	if timebreak := strings.Split(result["time"], "."); len(timebreak) > 0 {
 		minsec := strings.Split(timebreak[0], ":")
-		result["min"], result["sec"] = minsec[0], minsec[1]
+		result["minutes"], result["seconds"] = minsec[0], minsec[1]
 	}
 
 

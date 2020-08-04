@@ -40,11 +40,11 @@ func Test_format1С(t *testing.T) {
 				}
 			}
 			if i == 4 {
-				if min, ok := data["min"]; !ok || min != "38" {
-					t.Error("Отсутствует или не верно определено свойство \"min\"")
+				if min, ok := data["minutes"]; !ok || min != "38" {
+					t.Error("Отсутствует или не верно определено свойство \"minutes\"")
 				}
-				if sec, ok := data["sec"]; !ok || sec != "51" {
-					t.Error("Отсутствует или не верно определено свойство \"sec\"")
+				if sec, ok := data["seconds"]; !ok || sec != "51" {
+					t.Error("Отсутствует или не верно определено свойство \"seconds\"")
 				}
 			}
 
