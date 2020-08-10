@@ -5,6 +5,20 @@ import (
 	"strings"
 )
 
+const (
+	stateStart = iota
+	stateDigital1
+	stateDigital2
+	stateDigital3
+	stateDigital4
+	stateDot
+	stateDotDot
+	stateDash
+)
+var (
+	currentState int = 0
+)
+
 type Iformatter interface {
 	Format(string) map[string]string
 }
@@ -14,6 +28,17 @@ type formatter1C struct{}
 func (f *formatter1C) Format(str string) map[string]string {
 	result := make(map[string]string, 0)
 	tmp := make(map[string]string)
+
+	// проверяем на соответствие шаблону, важно при обработке многострочных логов
+	// слишком дорагая операция, съедает 50% времени
+	//re := regexp.MustCompile(`(?mi)\d\d:\d\d\.\d+[-]\d+`)
+	//if ok := re.MatchString(str); !ok {
+	//	return result
+	//}
+
+	if !FSM(str) {
+		return result
+	}
 
 	// "," может встречаться в значение, в таких случаях значение будет строкой т.е. в "" или в ''
 	for {
@@ -37,13 +62,6 @@ func (f *formatter1C) Format(str string) map[string]string {
 	//r := csv.NewReader(strings.NewReader(str))
 	//r.LazyQuotes = true
 	//record, _ := r.Read()
-
-	// проверяем на соответствие шаблону, важно при обработке многострочных логов
-	// слишком дорагая операция, съедает 50% времени
-	//re := regexp.MustCompile(`(?mi)\d\d:\d\d\.\d+[-]\d+`)
-	//if ok := re.MatchString(str); !ok {
-	//	return result
-	//}
 
 	parts := strings.Split(str, ",")
 	if len(parts) < 2 {
@@ -91,3 +109,45 @@ func (f *formatter1C) Format(str string) map[string]string {
 
 	return result
 }
+
+
+
+//////// Конечный автомат ////////
+
+// Аналог шаблону регулярки \d\d:\d\d\.\d+[-]\d+
+// Но быстрее
+func FSM(str string) bool {
+	defer func() { currentState = stateStart }()
+
+	runes := []rune(str)
+	for i := 0; i < len(runes); i++ {
+		//fmt.Println(str[i:i+1])
+		if isDigital(runes[i]) && (currentState == stateStart || currentState == stateDigital1) {
+			currentState = stateDigital1
+		} else if runes[i] == ':' && currentState == stateDigital1 {
+			currentState = stateDotDot
+		} else if isDigital(runes[i]) && (currentState == stateDotDot || currentState == stateDigital2) {
+			currentState = stateDigital2
+		} else if runes[i] == '.' && currentState == stateDigital2 {
+			currentState = stateDot
+		}  else if isDigital(runes[i]) && (currentState == stateDot || currentState == stateDigital3) {
+			currentState = stateDigital3
+		} else if runes[i] == '-' && currentState == stateDigital3 {
+			currentState = stateDash
+		}  else if isDigital(runes[i]) && (currentState == stateDash || currentState == stateDigital4) {
+			currentState = stateDigital4
+		} else if runes[i] == ',' && currentState == stateDigital4 {
+			return true
+		} else {
+			return false
+		}
+	}
+
+	return false
+}
+
+func isDigital(letter rune) bool {
+	return letter >= '0' && letter <= '9'
+}
+
+//////////////////////////////////

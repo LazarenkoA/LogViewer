@@ -24,6 +24,14 @@ func Test_format1С(t *testing.T) {
 	t.Parallel()
 	for i, str := range logs {
 		t.Run(fmt.Sprintf( "Строка %v", i+1), func(t *testing.T) {
+			if !FSM(str) && !(i == 3 || i == 2){
+				t.Error("Не пройден FSM")
+				return
+			} else if FSM(str) && (i == 3 || i == 2){
+				t.Error("Ошибочно пройден FSM")
+				return
+			}
+
 			data := formatter.Format(str)
 
 			// Обязательные поля
