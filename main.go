@@ -215,12 +215,12 @@ func (this *tableView) start() {
 			}
 		}
 		if event.Key() == tcell.KeyPgUp || event.Key() == tcell.KeyHome {
-			this.table.Select(1, 0)
+			//this.table.Select(1, 0)
 			this.table.ScrollToBeginning()
 			return nil
 		}
 		if event.Key() == tcell.KeyEnd {
-			this.table.Select(this.table.GetRowCount()-1 , 0)
+			//this.table.Select(this.table.GetRowCount()-1 , 0)
 			this.table.ScrollToEnd()
 			return nil
 		}
@@ -347,6 +347,16 @@ func (this *tableView) tableHeader() {
 			SetAlign(tview.AlignLeft).
 			SetSelectable(false))
 	}
+
+	// что б видно было по какой колонке отсортировано
+	for i := 0; i < this.table.GetColumnCount(); i++ {
+		if i == this.sortColumn && i <= startColCount-1 {
+			this.table.GetCell(0, i).Text += " ▼"
+		} else {
+			this.table.GetCell(0, i).Text = strings.Replace(this.table.GetCell(0, i).Text, " ▼", "", -1)
+		}
+	}
+
 }
 
 func (this *tableView) renderTableFooter(footer  *tview.Frame, mode int)  {
@@ -401,7 +411,7 @@ func (this *tableView) forceRenderTable() {
 func (this *tableView) renderTable() {
 	this.RLock()
 	defer this.RUnlock()
-	defer this.table.ScrollToBeginning()
+
 
 	// перекладываем из мапы в массив, что б его потом сортировать
 	dataArray := []*tline{}
@@ -424,6 +434,9 @@ func (this *tableView) renderTable() {
 	}
 
 	go this.app.QueueUpdateDraw(func() {
+		defer this.table.ScrollToBeginning()
+
+
 	continueLine:
 		for _, v := range dataArray {
 			row := this.table.GetRowCount()
@@ -476,6 +489,7 @@ func (this *tableView) renderTable() {
 			this.table.SetCell(row, len(v.keys)+cCount, tview.NewTableCell(v.id).SetSelectable(false).
 				SetTextColor(this.table.GetBackgroundColor()).
 				SetMaxWidth(1))
+
 		}
 	})
 }
