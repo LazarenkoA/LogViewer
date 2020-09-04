@@ -6,11 +6,11 @@ import (
 
 	"context"
 	"crypto/md5"
-	"flag"
 	"fmt"
 	"github.com/atotto/clipboard"
 	"github.com/gdamore/tcell"
 	"github.com/rivo/tview"
+	kingpin "gopkg.in/alecthomas/kingpin.v2"
 	"math"
 	"math/rand"
 	"runtime"
@@ -49,9 +49,9 @@ type tableView struct {
 }
 
 var (
-	showHelp    bool
+	sLine       bool
 	aggr, group string
-	//max, summ, avg int
+	kp          *kingpin.Application
 )
 
 const (
@@ -63,19 +63,18 @@ const (
 
 func init() {
 	rand.Seed(time.Now().UTC().UnixNano())
-	flag.StringVar(&group, "g", "", "(group) Имена свойств для по которым нужно группировать")
-	flag.StringVar(&aggr, "a", "", "(aggregate) Имя свойства для агрегации (сумма, макс, ср)")
-	flag.BoolVar(&showHelp, "help", false, "Помощь")
+
+	kp = kingpin.New("LogViewer", "Приложение для просмотра логов в табличном виде")
+	kp.Flag("group", "Имена свойств для по которым нужно группировать").Short('g').StringVar(&group)
+	kp.Flag("aggregate", "Имя свойства для агрегации (сумма, макс, ср)").Short('a').StringVar(&aggr)
+	kp.Flag("savelines", "Если true значит уприложение будет сохранять исходные строки, что бы можно было посмотреть что вошло в ту или иную группировку. " +
+		"Требует много оперативной памяти.").Short('s').Default("false").BoolVar(&sLine)
 
 	runtime.SetMutexProfileFraction(5)
 }
 
 func main() {
-	flag.Parse()
-	if showHelp {
-		flag.Usage()
-		return
-	}
+	kp.Parse(os.Args[1:])
 
 	stat, _ := os.Stdin.Stat()
 	if (stat.Mode() & os.ModeNamedPipe) == 0 {
@@ -121,9 +120,9 @@ func (this *tableView) start() {
 
 	this.pages.AddPage("table", this.table, true, true)
 	frame := tview.NewFrame(this.pages).SetBorders(0, 0, 0, 1, 0, 0)
- 	this.renderTableFooter(frame, modeDefault)
+	this.renderTableFooter(frame, modeDefault)
 
-	textView := tview.NewTextView().//.SetDynamicColors(true).
+	textView := tview.NewTextView(). //.SetDynamicColors(true).
 		SetScrollable(true).
 		SetWordWrap(true).
 		SetRegions(true).
@@ -155,6 +154,9 @@ func (this *tableView) start() {
 		clipboard.WriteAll(tview.TranslateANSI(this.table.GetCell(row, column).Text))
 		this.renderTableFooter(frame, modeDefault)
 	})
+	//this.table.SetSelectionChangedFunc(func(row, column int) {
+	//fmt.Println(1)
+	//})
 	this.table.SetMouseCapture(func(action tview.MouseAction, event *tcell.EventMouse) (action2 tview.MouseAction, mouse *tcell.EventMouse) {
 		// пока не нашел другого способа понять по какой ячейке кликнули
 		if action == tview.MouseLeftClick && this.table.GetColumnCount() > 1 {
@@ -173,22 +175,22 @@ func (this *tableView) start() {
 			}
 		}
 
-
 		return action, event
 	})
 	this.app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		if event.Key() == tcell.KeyTAB  && !viewerMode { // почему-то tcell.KeyF2 не работает в linux
+		if event.Key() == tcell.KeyTAB && !viewerMode { // почему-то tcell.KeyF2 не работает в linux
 			row, _ := this.table.GetSelection()
 			if !selectMode { // значит не вошли в режим выделения
 				return event
 			}
-			column := this.table.GetColumnCount()-1
+			column := this.table.GetColumnCount() - 1
 			id := this.table.GetCell(row, column).Text
 
 			viewerMode = true
 			this.pages.AddPage("viewer", textView, true, true)
 			textView.Clear()
-			go func() {textView.ScrollToBeginning()
+			go func() {
+				textView.ScrollToBeginning()
 				if v, ok := this.line[id]; ok {
 					txt := fmt.Sprintf(`["all"]%v[""]`, strings.Join(v.sourceLines, "\n")) //долго грузится при больших объемах
 					textView.SetText(txt)
@@ -226,7 +228,6 @@ func (this *tableView) start() {
 		}
 		return event
 	})
-
 
 	// события TextView
 	selectMode = false
@@ -274,12 +275,13 @@ func (this *tableView) tableFill() {
 	for line := range this.in {
 		linedata := &tline{
 			keys:        []string{},
-			sourceLines: []string{line},
 			count:       1,
+		}
+		if sLine {
+			linedata.sourceLines = []string{line}
 		}
 
 		fline := formatter.Format(line)
-
 		groupField := strings.Split(group, ",")
 		if len(groupField) > 0 {
 			for _, field := range groupField {
@@ -298,7 +300,10 @@ func (this *tableView) tableFill() {
 		linedata.id = key
 		if this.lineExist(key) {
 			this.line[key].count++
-			this.line[key].sourceLines = append(this.line[key].sourceLines, line)
+			if sLine {
+				this.line[key].sourceLines = append(this.line[key].sourceLines, line)
+			}
+
 			this.line[key].max = int(math.Max(float64(intVal), float64(this.line[key].max)))
 			this.line[key].summ += intVal
 			this.line[key].avg = this.line[key].summ / this.line[key].count
@@ -359,25 +364,23 @@ func (this *tableView) tableHeader() {
 
 }
 
-func (this *tableView) renderTableFooter(footer  *tview.Frame, mode int)  {
+func (this *tableView) renderTableFooter(footer *tview.Frame, mode int) {
 	footer.Clear()
 	if mode&modeDefault == modeDefault {
-		footer.AddText( "Exit - Esc", false, tview.AlignLeft, tcell.ColorGreen).
-			AddText( "Select mode - Enter", false, tview.AlignCenter, tcell.ColorGreen)
+		footer.AddText("Exit - Esc", false, tview.AlignLeft, tcell.ColorGreen).
+			AddText("Select mode - Enter", false, tview.AlignCenter, tcell.ColorGreen)
 
 	}
 	if mode&modeSelect == modeSelect {
-		footer.AddText( "Exit mode - Esc", false, tview.AlignLeft, tcell.ColorGreen).
-			AddText( "Copy in clipboard - Enter", false, tview.AlignCenter, tcell.ColorGreen).
-			AddText( "View lines - Tab", false, tview.AlignRight, tcell.ColorGreen)
+		footer.AddText("Exit mode - Esc", false, tview.AlignLeft, tcell.ColorGreen).
+			AddText("Copy in clipboard - Enter", false, tview.AlignCenter, tcell.ColorGreen).
+			AddText("View lines - Tab", false, tview.AlignRight, tcell.ColorGreen)
 	}
 	if mode&modeView == modeView {
-		footer.AddText( "Exit view - Esc", false, tview.AlignLeft, tcell.ColorGreen).
-			AddText( "Copy in clipboard - Enter", false, tview.AlignCenter, tcell.ColorGreen)
+		footer.AddText("Exit view - Esc", false, tview.AlignLeft, tcell.ColorGreen).
+			AddText("Copy in clipboard - Enter", false, tview.AlignCenter, tcell.ColorGreen)
 	}
 	// fmt.Printf("%-50v", "текст") - не работает с frame
-
-
 
 	//frame.AddText(appendletter("Включить режим выделения строк", ".", 60) + "Enter", false, tview.AlignLeft, tcell.ColorBlue).
 	//	AddText(appendletter("Скопировать значение ячейки в буфер (в режиме выделения)", ".", 60) + "Enter", false, tview.AlignLeft, tcell.ColorBlue).
@@ -412,7 +415,6 @@ func (this *tableView) renderTable() {
 	this.RLock()
 	defer this.RUnlock()
 
-
 	// перекладываем из мапы в массив, что б его потом сортировать
 	dataArray := []*tline{}
 	for _, v := range this.line {
@@ -435,7 +437,6 @@ func (this *tableView) renderTable() {
 
 	go this.app.QueueUpdateDraw(func() {
 		defer this.table.ScrollToBeginning()
-
 
 	continueLine:
 		for _, v := range dataArray {
@@ -515,7 +516,7 @@ func getHash(inStr string) string {
 	return fmt.Sprintf("%x", Sum)
 }
 
-func appendletter(str, letter string, count int) string  {
+func appendletter(str, letter string, count int) string {
 	if len([]rune(str)) >= count {
 		return str
 	}
