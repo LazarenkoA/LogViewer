@@ -45,8 +45,11 @@ perl -pe '$_ =~ s/\r\n/\n/g; $_ =~ s/[ \t]+/ /g; ' | awk -vORS= '{if(match($0, "
 
 
 ### Начать использовать
-Качаем актуальный [релиз](https://github.com/LazarenkoA/LogViewer/releases ) помещаем бинарник в PATH, все.
-Или, ставим [Go](https://blog.golang.org/), выполняем `go get github.com/LazarenkoA/LogViewer`
+- Качаем актуальный [релиз](https://github.com/LazarenkoA/LogViewer/releases ) помещаем бинарник в PATH, все.
+- Ставим [Go](https://blog.golang.org/), выполняем `go get github.com/LazarenkoA/LogViewer` _(в этом случае бинарник будет называться LogViewer)_
+- Ставим [Go](https://blog.golang.org/), `git clone https://github.com/LazarenkoA/LogViewer`, переходим в каталог `go build -o "tview"` или `go build -o "tview.exe"` полученный  бинарник помещаем в PATH, все. 
+
+
 
 
 ### Key bindings
