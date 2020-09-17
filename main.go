@@ -154,8 +154,9 @@ func (this *tableView) start() {
 		clipboard.WriteAll(tview.TranslateANSI(this.table.GetCell(row, column).Text))
 		this.renderTableFooter(frame, modeDefault)
 	})
-	//this.table.SetSelectionChangedFunc(func(row, column int) {
-	//fmt.Println(1)
+	//this.table.GetCell(0, 1).SetClickedFunc(func()bool {
+	//	fmt.Println(1)
+	//	return true
 	//})
 	this.table.SetMouseCapture(func(action tview.MouseAction, event *tcell.EventMouse) (action2 tview.MouseAction, mouse *tcell.EventMouse) {
 		// пока не нашел другого способа понять по какой ячейке кликнули

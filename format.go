@@ -27,7 +27,8 @@ type formatter1C struct{}
 
 func (f *formatter1C) Format(str string) map[string]string {
 	result := make(map[string]string, 0)
-	tmp := make(map[string]string)
+	tmp1 := make(map[string]string)
+	tmp2 := make(map[string]string)
 
 	// проверяем на соответствие шаблону, важно при обработке многострочных логов
 	// слишком дорагая операция, съедает 50% времени
@@ -41,23 +42,31 @@ func (f *formatter1C) Format(str string) map[string]string {
 	}
 
 	// "," может встречаться в значение, в таких случаях значение будет строкой т.е. в "" или в ''
-	for {
-		if quoteStart := strings.Index(str, "'")+1; quoteStart > 0 {
-			right := str[quoteStart:]
-			if quoteEnd := strings.Index(right, "'"); quoteEnd >= 0 {
-				if ID, err := uuid.NewV4(); err == nil {
-					strID := ID.String()
+	replace := func(tmp map[string]string, char string) {
+		for {
+			if quoteStart := strings.Index(str, char) + 1; quoteStart > 0 {
+				right := str[quoteStart:]
+				if quoteEnd := strings.Index(right, char); quoteEnd >= 0 {
+					if ID, err := uuid.NewV4(); err == nil {
+						strID := ID.String()
 
-					tmp[strID] = "'"+ str[quoteStart : quoteStart+quoteEnd] + "'"
-					str = strings.Replace(str, tmp[strID], strID, -1)
+						tmp[strID] = char + str[quoteStart:quoteStart+quoteEnd] + char
+						str = strings.Replace(str, tmp[strID], strID, -1)
+					}
+				} else {
+					break
 				}
 			} else {
 				break
 			}
-		} else {
-			break
 		}
 	}
+
+	// могут быть случаи когда в двойных кавычках есть одинарные, например
+	// Prm="p_1: 'a7fe0aa5-722c-4a09-889b-ee422421addc'::mvarchar"
+	// что б корректно с таким работать нужно сохранять порядок, т.к. мапа не гарантирует порядок нужно разбить на 2 мапы
+	replace(tmp1, "'")
+	replace(tmp2, "\"")
 
 	//r := csv.NewReader(strings.NewReader(str))
 	//r.LazyQuotes = true
@@ -100,10 +109,12 @@ func (f *formatter1C) Format(str string) map[string]string {
 		// Descr='./src/ClusterDistribImpl.cpp(1640):60c686dc-798f-4d17-aadb-a90156a16eb8: Сеанс отсутствует или удаленID=30ecb789-2b56-46af-971d-c0a9579b9181
 		if len(keyValue) >= 2 {
 			result[keyValue[0]] = strings.Join(keyValue[1:], "=")
-			for k, v := range tmp {
+			for k, v := range tmp2 {
 				result[keyValue[0]] = strings.Replace(result[keyValue[0]], k, v, -1)
 			}
-
+			for k, v := range tmp1 {
+				result[keyValue[0]] = strings.Replace(result[keyValue[0]], k, v, -1)
+			}
 		}
 	}
 
