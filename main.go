@@ -64,7 +64,7 @@ const (
 func init() {
 	rand.Seed(time.Now().UTC().UnixNano())
 
-	kp = kingpin.New("LogViewer", "Приложение для просмотра логов в табличном виде")
+	kp = kingpin.New("LogViewer", "Приложение для просмотра логов в табличном виде. https://github.com/LazarenkoA/LogViewer")
 	kp.Flag("group", "Имена свойств для по которым нужно группировать").Short('g').StringVar(&group)
 	kp.Flag("aggregate", "Имя свойства для агрегации (сумма, макс, ср)").Short('a').StringVar(&aggr)
 	kp.Flag("savelines", "Если true значит уприложение будет сохранять исходные строки, что бы можно было посмотреть что вошло в ту или иную группировку. " +
