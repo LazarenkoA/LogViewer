@@ -19,7 +19,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
 	// _ "net/http/pprof"
 )
 
@@ -67,7 +66,7 @@ func init() {
 	kp = kingpin.New("LogViewer", "Приложение для просмотра логов в табличном виде. https://github.com/LazarenkoA/LogViewer")
 	kp.Flag("group", "Имена свойств для по которым нужно группировать").Short('g').StringVar(&group)
 	kp.Flag("aggregate", "Имя свойства для агрегации (сумма, макс, ср)").Short('a').StringVar(&aggr)
-	kp.Flag("savelines", "Если true значит уприложение будет сохранять исходные строки, что бы можно было посмотреть что вошло в ту или иную группировку. " +
+	kp.Flag("savelines", "Если true значит уприложение будет сохранять исходные строки, что бы можно было посмотреть что вошло в ту или иную группировку. "+
 		"Требует много оперативной памяти.").Short('s').Default("false").BoolVar(&sLine)
 
 	runtime.SetMutexProfileFraction(5)
@@ -123,10 +122,10 @@ func (this *tableView) start() {
 	this.renderTableFooter(frame, modeDefault)
 
 	textView := tview.NewTextView(). //.SetDynamicColors(true).
-		SetScrollable(true).
-		SetWordWrap(true).
-		SetRegions(true).
-		SetChangedFunc(func() {
+						SetScrollable(true).
+						SetWordWrap(true).
+						SetRegions(true).
+						SetChangedFunc(func() {
 			this.app.Draw()
 		})
 	textView.SetBorder(true)
@@ -273,16 +272,27 @@ func (this *tableView) tableFill() {
 	}()
 
 	formatter := new(formatter1C)
+	linedata := &tline{
+		keys:  []string{},
+		count: 1,
+	}
+	var sourceLine string
+
 	for line := range this.in {
-		linedata := &tline{
-			keys:        []string{},
-			count:       1,
+		fline, err := formatter.Format(line)
+
+		if err != nil {
+			sourceLine += line + "\n"
+			continue
 		}
+		sourceLine += line
+
 		if sLine {
-			linedata.sourceLines = []string{line}
+			linedata.sourceLines = []string{sourceLine}
 		}
 
-		fline := formatter.Format(line)
+		sourceLine = ""
+
 		groupField := strings.Split(group, ",")
 		if len(groupField) > 0 {
 			for _, field := range groupField {
@@ -302,7 +312,7 @@ func (this *tableView) tableFill() {
 		if this.lineExist(key) {
 			this.line[key].count++
 			if sLine {
-				this.line[key].sourceLines = append(this.line[key].sourceLines, line)
+				this.line[key].sourceLines = append(this.line[key].sourceLines, linedata.sourceLines[0])
 			}
 
 			this.line[key].max = int(math.Max(float64(intVal), float64(this.line[key].max)))
@@ -312,6 +322,11 @@ func (this *tableView) tableFill() {
 			linedata.max = int(math.Max(float64(intVal), float64(linedata.max)))
 			linedata.summ += intVal
 			this.Addline(key, linedata)
+		}
+
+		linedata = &tline{
+			keys:  []string{},
+			count: 1,
 		}
 	}
 

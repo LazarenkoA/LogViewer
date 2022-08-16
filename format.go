@@ -1,7 +1,7 @@
 package main
 
 import (
-	uuid "github.com/nu7hatch/gouuid"
+	"errors"
 	"strings"
 )
 
@@ -15,6 +15,7 @@ const (
 	stateDotDot
 	stateDash
 )
+
 var (
 	currentState int = 0
 )
@@ -23,105 +24,165 @@ type Iformatter interface {
 	Format(string) map[string]string
 }
 
-type formatter1C struct{}
+const (
+	parseBegin = iota
+	parseEvent
+	parseDuration
+	parseKey
+	parseValue
+	parseFinish
+)
 
-func (f *formatter1C) Format(str string) map[string]string {
-	result := make(map[string]string, 0)
-	tmp1 := make(map[string]string)
-	tmp2 := make(map[string]string)
+const (
+	parseValueBegin = iota
+	parseValueUntil
+	parseValueToNext
+	parseValueFinish
+)
 
-	// проверяем на соответствие шаблону, важно при обработке многострочных логов
-	// слишком дорагая операция, съедает 50% времени
-	//re := regexp.MustCompile(`(?mi)\d\d:\d\d\.\d+[-]\d+`)
-	//if ok := re.MatchString(str); !ok {
-	//	return result
-	//}
-
-	if !FSM(str) {
-		return result
-	}
-
-	// "," может встречаться в значение, в таких случаях значение будет строкой т.е. в "" или в ''
-	replace := func(tmp map[string]string, char string) {
-		for {
-			if quoteStart := strings.Index(str, char) + 1; quoteStart > 0 {
-				right := str[quoteStart:]
-				if quoteEnd := strings.Index(right, char); quoteEnd >= 0 {
-					if ID, err := uuid.NewV4(); err == nil {
-						strID := ID.String()
-
-						tmp[strID] = char + str[quoteStart:quoteStart+quoteEnd] + char
-						str = strings.Replace(str, tmp[strID], strID, -1)
-					}
-				} else {
-					break
-				}
-			} else {
-				break
-			}
-		}
-	}
-
-	// могут быть случаи когда в двойных кавычках есть одинарные, например
-	// Prm="p_1: 'a7fe0aa5-722c-4a09-889b-ee422421addc'::mvarchar"
-	// что б корректно с таким работать нужно сохранять порядок, т.к. мапа не гарантирует порядок нужно разбить на 2 мапы
-	replace(tmp1, "'")
-	replace(tmp2, "\"")
-
-	//r := csv.NewReader(strings.NewReader(str))
-	//r.LazyQuotes = true
-	//record, _ := r.Read()
-
-	parts := strings.Split(str, ",")
-	if len(parts) < 2 {
-		return result
-	}
-
-	// системные свойства, время, событие, длительность (06:11.062003-0,CLSTR,0,pro....)
-	timeDuration := strings.Index(parts[0], "-")
-	if timeDuration < 0 || len([]rune(parts[0][:timeDuration])) != 12 {
-		return result
-	}
-
-	// время
-	result["time"] = parts[0][:timeDuration]
-	if timebreak := strings.Split(result["time"], "."); len(timebreak) > 0 {
-		if minsec := strings.Split(timebreak[0], ":"); len(minsec) >= 2 {
-			result["minutes"], result["seconds"] = minsec[0], minsec[1]
-		} else {
-			return result
-		}
-	} else {
-		return result
-	}
-
-
-	// длительность
-	result["duration"] = parts[0][timeDuration+1:]
-
-	// событие
-	result["event"] = parts[1]
-
-	for _, v := range parts {
-		keyValue := strings.Split(strings.Trim(v, " "), "=")
-
-		// могут быть такие данные
-		// Descr='./src/ClusterDistribImpl.cpp(1640):60c686dc-798f-4d17-aadb-a90156a16eb8: Сеанс отсутствует или удаленID=30ecb789-2b56-46af-971d-c0a9579b9181
-		if len(keyValue) >= 2 {
-			result[keyValue[0]] = strings.Join(keyValue[1:], "=")
-			for k, v := range tmp2 {
-				result[keyValue[0]] = strings.Replace(result[keyValue[0]], k, v, -1)
-			}
-			for k, v := range tmp1 {
-				result[keyValue[0]] = strings.Replace(result[keyValue[0]], k, v, -1)
-			}
-		}
-	}
-
-	return result
+type formatter1C struct {
+	currentState    int
+	currentLine     map[string]string
+	currentKey      string
+	currentValue    string
+	parseValueState int
+	parseValueQuote uint8
 }
 
+func (f *formatter1C) Format(str string) (map[string]string, error) {
+	// cat file.log
+	// Txt='
+	// fdaoijfdsjfiodsjf
+	//'
 
+	if f.currentLine == nil {
+		f.currentLine = make(map[string]string)
+		f.parseValueState = parseValueBegin
+	}
+
+	for {
+		if f.currentState == parseBegin {
+			delim := strings.Index(str, "-")
+			index := strings.Index(str, ",")
+
+			f.currentLine["time"] = str[:delim]
+
+			minutes := strings.Index(f.currentLine["time"], ":")
+			seconds := strings.Index(f.currentLine["time"], ".")
+
+			f.currentLine["minutes"] = f.currentLine["time"][:minutes]
+			f.currentLine["seconds"] = f.currentLine["time"][(minutes + 1):seconds]
+			f.currentLine["duration"] = str[(delim + 1):index]
+
+			f.currentState = parseEvent
+			str = str[(index + 1):]
+		} else if f.currentState == parseEvent {
+			index := strings.Index(str, ",")
+			f.currentLine["event"] = str[:index]
+
+			f.currentState = parseDuration
+			str = str[(index + 1):]
+		} else if f.currentState == parseDuration {
+			index := strings.Index(str, ",")
+			f.currentLine["duration1"] = str[:index]
+
+			f.currentState = parseKey
+			str = str[(index + 1):]
+		} else if f.currentState == parseKey {
+			index := strings.Index(str, "=")
+			f.currentKey = str[:index]
+
+			f.currentState = parseValue
+			f.parseValueState = parseValueBegin
+			str = str[(index + 1):]
+		} else if f.currentState == parseValue {
+			for {
+				if f.parseValueState == parseValueBegin {
+					if len(str) == 0 || str[0] == ',' || str[0] == '\r' || str[0] == '\n' {
+						// Key=,Key2=
+						f.currentValue = ""
+						f.parseValueState = parseValueFinish
+					} else if str[0] == '\'' || str[0] == '"' {
+						// Key="Value" || Key='Value'
+						f.parseValueQuote = str[0]
+						str = str[1:]
+						f.parseValueState = parseValueUntil
+					} else {
+						// Key=Value
+						f.parseValueState = parseValueToNext
+					}
+				} else if f.parseValueState == parseValueUntil {
+					if len(str) == 0 {
+						return make(map[string]string), errors.New("not finished")
+					}
+
+					var index = 0
+					for {
+						if index >= len(str) {
+							return make(map[string]string), errors.New("not finished") //еще не распарсили до конца
+						}
+
+						if str[index] == '\'' || str[index] == '"' {
+							if (index+1) < len(str) && str[index+1] == str[index] {
+								index += 2
+								continue
+							} else if str[index] == f.parseValueQuote {
+								f.currentValue = str[:index]
+								str = str[(index + 1):]
+								f.parseValueState = parseValueFinish
+								break
+							}
+						}
+
+						index += 1
+					}
+				} else if f.parseValueState == parseValueToNext {
+					for index, symbol := range str {
+						if symbol == '\r' || symbol == '\n' || symbol == ',' {
+							f.currentValue = str[:index]
+							str = str[index:]
+							f.parseValueState = parseValueFinish
+							break
+						}
+					}
+
+					if f.parseValueState == parseValueToNext { // По сути это конец строки в принципе
+						f.currentState = parseFinish
+						f.currentLine[f.currentKey] = str
+						break
+					}
+				} else if f.parseValueState == parseValueFinish {
+					if len(str) == 0 {
+						f.currentState = parseFinish
+						f.currentLine[f.currentKey] = f.currentValue
+					} else if str[0] == '\r' {
+						f.currentState = parseFinish
+						str = str[2:]
+						f.currentLine[f.currentKey] = f.currentValue
+					} else if str[0] == '\n' {
+						f.currentState = parseFinish
+						str = str[1:]
+						f.currentLine[f.currentKey] = f.currentValue
+					} else if str[0] == ',' {
+						f.currentState = parseKey
+						str = str[1:]
+						f.currentLine[f.currentKey] = f.currentValue
+					}
+					break
+				}
+			}
+		} else if f.currentState == parseFinish {
+			ret := f.currentLine
+			f.currentState = parseBegin
+			f.currentKey = ""
+			f.currentValue = ""
+			f.currentLine = make(map[string]string)
+			f.parseValueState = parseValueBegin
+			f.parseValueQuote = 0
+			return ret, nil
+		}
+	}
+}
 
 //////// Конечный автомат ////////
 
@@ -141,11 +202,11 @@ func FSM(str string) bool {
 			currentState = stateDigital2
 		} else if runes[i] == '.' && currentState == stateDigital2 {
 			currentState = stateDot
-		}  else if isDigital(runes[i]) && (currentState == stateDot || currentState == stateDigital3) {
+		} else if isDigital(runes[i]) && (currentState == stateDot || currentState == stateDigital3) {
 			currentState = stateDigital3
 		} else if runes[i] == '-' && currentState == stateDigital3 {
 			currentState = stateDash
-		}  else if isDigital(runes[i]) && (currentState == stateDash || currentState == stateDigital4) {
+		} else if isDigital(runes[i]) && (currentState == stateDash || currentState == stateDigital4) {
 			currentState = stateDigital4
 		} else if runes[i] == ',' && currentState == stateDigital4 {
 			return true
