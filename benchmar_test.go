@@ -16,12 +16,6 @@ func BenchmarkRegexp(b *testing.B) {
 	}
 }
 
-func BenchmarkFSM(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		FSM(str)
-	}
-}
-
 func BenchmarkGetHashWithRace(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		getHashWitRace(str)
@@ -31,6 +25,13 @@ func BenchmarkGetHashWithRace(b *testing.B) {
 func BenchmarkGetHashWithoutRace(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		getHashWithoutRace(str)
+	}
+}
+
+func BenchmarkParseString(b *testing.B) {
+	formatter := new(formatter1C)
+	for i := 0; i < b.N; i++ {
+		formatter.Format(str)
 	}
 }
 
@@ -64,7 +65,7 @@ func getHashWithoutRace(s string) string {
 func getHashWitRace(inStr string) string {
 	out := make(chan string)
 	// race pattern
-	sumString := func()  {
+	sumString := func() {
 		Sum := md5.Sum([]byte(inStr))
 		out <- fmt.Sprintf("%x", Sum)
 	}
@@ -79,12 +80,8 @@ func getHashWitRace(inStr string) string {
 
 func getHashWitWorkers(s string) string {
 
-
 	Sum := md5.Sum([]byte(s))
 	return fmt.Sprintf("%x", Sum)
 }
-
-
-
 
 // go test . -test.bench .*
