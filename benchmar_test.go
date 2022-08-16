@@ -28,6 +28,13 @@ func BenchmarkGetHashWithoutRace(b *testing.B) {
 	}
 }
 
+func BenchmarkParseString(b *testing.B) {
+	formatter := new(formatter1C)
+	for i := 0; i < b.N; i++ {
+		formatter.Format(str)
+	}
+}
+
 func BenchmarkGetHashWitWorkers(b *testing.B) {
 	//workersIn := make(chan string, 0)
 	//workersOut := make(chan string, 0)
