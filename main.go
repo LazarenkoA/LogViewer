@@ -5,7 +5,6 @@ import (
 	"os"
 
 	"context"
-	"crypto/md5"
 	"encoding/csv"
 	"fmt"
 	"math"
@@ -19,6 +18,7 @@ import (
 	"github.com/atotto/clipboard"
 	"github.com/gdamore/tcell"
 	"github.com/rivo/tview"
+	"github.com/segmentio/fasthash/fnv1a"
 	kingpin "gopkg.in/alecthomas/kingpin.v2"
 	// _ "net/http/pprof"
 )
@@ -568,7 +568,9 @@ func (tv *tableView) showmodal(str string) {
 }
 
 func getHash(inStr string) string {
-	Sum := md5.Sum([]byte(inStr))
+	//Sum := md5.Sum([]byte(inStr))
+	//return fmt.Sprintf("%x", Sum)
+	Sum := fnv1a.HashString64(inStr)
 	return fmt.Sprintf("%x", Sum)
 }
 
