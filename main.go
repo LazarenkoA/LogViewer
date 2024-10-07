@@ -14,7 +14,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/atotto/clipboard"
@@ -83,20 +82,6 @@ type tline struct {
 	keys        []string
 	sourceLines []string
 	id          string
-}
-
-type tableView struct {
-	sync.RWMutex
-
-	app         *tview.Application
-	table       *tview.Table
-	pages       *tview.Pages
-	line        map[string]*tline
-	in          chan string
-	ctx         context.Context
-	sortColumn  int
-	csvFileName string
-	lang        string
 }
 
 var (
@@ -612,7 +597,7 @@ func (tv *tableView) exportToCSV() {
 		defer writer.Flush()
 
 		// Записываем заголовки
-		headers := []string{}
+		headers := make([]string, 0, tv.table.GetColumnCount())
 		for col := 0; col < tv.table.GetColumnCount()-1; col++ {
 			headers = append(headers, tv.table.GetCell(0, col).Text)
 		}
@@ -623,7 +608,7 @@ func (tv *tableView) exportToCSV() {
 
 		// Записываем данные
 		for row := 1; row < tv.table.GetRowCount(); row++ {
-			rowData := []string{}
+			rowData := make([]string, 0, tv.table.GetColumnCount())
 			for col := 0; col < tv.table.GetColumnCount()-1; col++ {
 				rowData = append(rowData, tv.table.GetCell(row, col).Text)
 			}
