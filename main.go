@@ -35,11 +35,12 @@ var messages = map[string]map[string]string{
 		"summ":              "Сумма (%v)",
 		"max":               "Максимум (%v)",
 		"avg":               "Среднее (%v)",
-		"exit":              "Выход - Esc",
-		"selectMode":        "Режим выбора - Enter",
-		"exportToCSV":       "Экспорт в CSV - F5",
-		"copyToClipboard":   "Копировать в буфер - Enter",
-		"viewRowsDetails":   "Просмотр строк - Tab",
+		"exit":              "(Esc) - Выход",
+		"selectMode":        "(Enter) - Режим выбора - Enter",
+		"exportToCSV":       "(F5) - Экспорт в CSV",
+		"copyToClipboard":   "(Enter) - Копировать в буфер",
+		"viewRowsDetails":   "(Tab) - Просмотр строк",
+		"viewData":          "(F1) - Просмотр данных",
 		"createFileError":   "Ошибка при создании файла: %v",
 		"writeFileError":    "Ошибка при записи заголовков: %v",
 		"writeFileSucccess": "Файл успешно сохранен в %s",
@@ -58,11 +59,12 @@ var messages = map[string]map[string]string{
 		"summ":              "Sum (%v)",
 		"max":               "Maximum (%v)",
 		"avg":               "Average (%v)",
-		"exit":              "Exit - Esc",
-		"selectMode":        "Select mode - Enter",
-		"exportToCSV":       "Export to CSV - F5",
-		"copyToClipboard":   "Copy to clipboard - Enter",
-		"viewRowsDetails":   "View rows - Tab",
+		"exit":              "(Esc) - Exit",
+		"selectMode":        "(Enter) - Select mode",
+		"exportToCSV":       "(F5) - Export to CSV",
+		"copyToClipboard":   "(Enter) - Copy to clipboard",
+		"viewRowsDetails":   "(Tab) - View rows",
+		"viewData":          "(F1) - View data",
 		"createFileError":   "Error creating file: %v",
 		"writeFileError":    "Error writing headers: %v",
 		"writeFileSucccess": "File successfully saved in %s",
@@ -221,32 +223,23 @@ func (tv *tableView) start() {
 	})
 	tv.app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		if event.Key() == tcell.KeyTAB && !viewerMode { // почему-то tcell.KeyF2 не работает в linux
-			row, _ := tv.table.GetSelection()
-			if !selectMode { // значит не вошли в режим выделения
-				return event
-			}
-			column := tv.table.GetColumnCount() - 1
-			id := tv.table.GetCell(row, column).Text
-
-			viewerMode = true
-			tv.pages.AddPage("viewer", textView, true, true)
-			textView.Clear()
-			go func() {
-				textView.ScrollToBeginning()
-				if v, ok := tv.line[id]; ok {
-					txt := fmt.Sprintf(`["all"]%v[""]`, strings.Join(v.sourceLines, "\n")) //долго грузится при больших объемах
-					textView.SetText(txt)
-
-					//txt := append([]string{ `["all"]` }, append(v.sourceLines,  `[""]` )... )
-					//for _, line := range txt {
-					//	fmt.Fprintln(textView, line)  // append
-					//	time.Sleep(time.Millisecond*10)
-					//	textView.ScrollToBeginning()
-					//}
-				}
-			}()
-
-			tv.renderTableFooter(frame, modeView)
+			//row, _ := tv.table.GetSelection()
+			//if !selectMode { // значит не вошли в режим выделения
+			//	return event
+			//}
+			//column := tv.table.GetColumnCount() - 1
+			//id := tv.table.GetCell(row, column).Text
+			//
+			//viewerMode = true
+			//
+			//txt := ""
+			//if v, ok := tv.line[id]; ok {
+			//	txt = fmt.Sprintf(`["all"]%v[""]\n`, strings.Join(v.sourceLines, "\n")) //долго грузится при больших объемах
+			//	textView.SetText(txt)
+			//}
+			//tv.showTextView(txt, textView)
+			//
+			//tv.renderTableFooter(frame, modeView)
 		} else if event.Key() == tcell.KeyEscape {
 			viewerMode = false
 			tv.pages.RemovePage("viewer")
@@ -272,6 +265,18 @@ func (tv *tableView) start() {
 			go tv.SaveToCSV()
 			return nil
 		}
+		if event.Key() == tcell.KeyF1 && !viewerMode {
+			row, column := tv.table.GetSelection()
+			if !selectMode { // значит не вошли в режим выделения
+				return event
+			}
+
+			viewerMode = true
+			txt := tv.table.GetCell(row, column).Text
+
+			tv.showTextView(txt, textView)
+			tv.renderTableFooter(frame, modeView)
+		}
 
 		return event
 	})
@@ -284,6 +289,7 @@ func (tv *tableView) start() {
 				textView.Highlight()
 				textView.Highlight("all").ScrollToHighlight()
 				tv.app.Draw()
+
 				clipboard.WriteAll(textView.GetText(true))
 				time.Sleep(time.Millisecond * 100)
 				textView.Highlight()
@@ -307,6 +313,13 @@ func (tv *tableView) start() {
 	if err := tv.app.SetRoot(frame, true).EnableMouse(true).Run(); err != nil {
 		panic(err)
 	}
+}
+
+func (tv *tableView) showTextView(txt string, textView *tview.TextView) {
+	tv.pages.AddPage("viewer", textView, true, true)
+	textView.Clear()
+	textView.ScrollToBeginning()
+	textView.SetText(txt)
 }
 
 func (tv *tableView) tableFill() {
@@ -437,7 +450,8 @@ func (tv *tableView) renderTableFooter(footer *tview.Frame, mode int) {
 	if mode&modeSelect == modeSelect {
 		footer.AddText(messages[tv.lang]["exit"], false, tview.AlignLeft, tcell.ColorGreen).
 			AddText(messages[tv.lang]["copyToClipboard"], false, tview.AlignCenter, tcell.ColorGreen).
-			AddText(messages[tv.lang]["viewRowsDetails"], false, tview.AlignRight, tcell.ColorGreen)
+			AddText(messages[tv.lang]["viewData"], false, tview.AlignRight, tcell.ColorGreen)
+		//AddText(messages[tv.lang]["viewRowsDetails"], false, tview.AlignRight, tcell.ColorGreen)
 	}
 	if mode&modeView == modeView {
 		footer.AddText(messages[tv.lang]["exit"], false, tview.AlignLeft, tcell.ColorGreen).
